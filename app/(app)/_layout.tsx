@@ -1,14 +1,28 @@
 import React from 'react';
-import { Stack } from 'expo-router';
+import { Tabs } from 'expo-router';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 export default function ProtectedLayout() {
   return (
-    <Stack>
-      <Stack.Screen
+    <Tabs screenOptions={{ headerShown: false }}>
+      <Tabs.Screen
         name='index'
-        options={{ headerTitle: 'Home', headerBackVisible: true }}
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name='home' size={size} color={color} />
+          ),
+        }}
       />
-      {/* Add other protected screens here */}
-    </Stack>
+      <Tabs.Screen
+        name='profile'
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name='person' size={size} color={color} />
+          ),
+        }}
+      />
+    </Tabs>
   );
 }

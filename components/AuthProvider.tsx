@@ -5,67 +5,111 @@ import { useRouter } from 'expo-router';
 
 maybeCompleteAuthSession();
 
+type UserData = {
+  id: string;
+  name: string;
+  // Add other fields as necessary
+};
+
 type AuthContextType = {
   token: string | null;
+  userData: UserData | null;
   isLoading: boolean;
   signIn: (token: string) => Promise<void>;
   signOut: () => Promise<void>;
-  isAuthStateChanging: boolean;
+  refreshUserData: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-interface AuthProviderProps extends React.PropsWithChildren<{}> {}
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+export const AuthProvider: React.FC<React.PropsWithChildren> = ({
+  children,
+}) => {
   const [token, setToken] = useState<string | null>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    loadToken();
+    loadTokenAndUserData();
   }, []);
 
   useEffect(() => {
     if (!isLoading) {
-      if (token) {
+      if (token && userData) {
         router.replace('/(app)');
       } else {
         router.replace('/(auth)/login');
       }
     }
-  }, [token, isLoading]);
+  }, [token, userData, isLoading]);
 
-  const loadToken = async () => {
+  const loadTokenAndUserData = async () => {
     try {
-      const storedToken = await SecureStore.getItemAsync('userToken');
+      const [storedToken, storedUserData] = await Promise.all([
+        SecureStore.getItemAsync('userToken'),
+        SecureStore.getItemAsync('userData'),
+      ]);
+
       setToken(storedToken);
+      setUserData(storedUserData ? JSON.parse(storedUserData) : null);
+
+      if (storedToken && !storedUserData) {
+        // If we have a token but no user data, fetch it from the server
+        await fetchUserData(storedToken);
+      }
     } catch (e) {
-      console.error('Failed to load token', e);
+      console.error('Failed to load token or user data', e);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const [isAuthStateChanging, setIsAuthStateChanging] = useState(false);
+  const fetchUserData = async (currentToken: string) => {
+    try {
+      const response = await fetch('https://home.bitrey.it/me', {
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+
+      const data = await response.json();
+      await SecureStore.setItemAsync('userData', JSON.stringify(data));
+      setUserData(data);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      await signOut();
+    }
+  };
 
   const signIn = async (newToken: string) => {
-    setIsAuthStateChanging(true);
     await SecureStore.setItemAsync('userToken', newToken);
     setToken(newToken);
-    setIsAuthStateChanging(false);
+    await fetchUserData(newToken);
   };
 
   const signOut = async () => {
-    setIsAuthStateChanging(true);
-    await SecureStore.deleteItemAsync('userToken');
+    await Promise.all([
+      SecureStore.deleteItemAsync('userToken'),
+      SecureStore.deleteItemAsync('userData'),
+    ]);
     setToken(null);
-    setIsAuthStateChanging(false);
+    setUserData(null);
+  };
+
+  const refreshUserData = async () => {
+    if (token) {
+      await fetchUserData(token);
+    }
   };
 
   return (
     <AuthContext.Provider
-      value={{ token, isLoading, signIn, signOut, isAuthStateChanging }}
+      value={{ token, userData, isLoading, signIn, signOut, refreshUserData }}
     >
       {children}
     </AuthContext.Provider>
