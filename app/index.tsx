@@ -1,13 +1,17 @@
-// app/index.tsx
-import { Redirect } from "expo-router";
-import { useAuth } from "../contexts/AuthContext";
+import { Redirect } from 'expo-router';
+import { useAuth } from '../components/AuthProvider';
+import { ActivityIndicator } from 'react-native';
 
 export default function Index() {
-    const { token } = useAuth();
+  const { token, isLoading } = useAuth();
 
-    if (token) {
-        return <Redirect href="/(tabs)" />;
-    }
+  if (isLoading) {
+    return <ActivityIndicator />;
+  }
 
-    return <Redirect href="/(auth)/login" />;
+  if (token) {
+    return <Redirect href='/(app)' />;
+  }
+
+  return <Redirect href='/(auth)/login' />;
 }
