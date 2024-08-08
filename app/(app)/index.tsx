@@ -1,17 +1,19 @@
 import React from 'react';
-import { View, Text, Button, StyleSheet } from 'react-native';
-import { useAuth } from '../../components/AuthProvider';
-import { Stack } from 'expo-router';
+import { StyleSheet, useColorScheme } from 'react-native';
+import ThemedText from '@/components/ThemedText';
+import Container from '@/components/Container';
+import StackScreen from '@/components/StackScreen';
 
 export default function Home() {
-  const { signOut } = useAuth();
+  const colorScheme = useColorScheme();
 
   return (
     <>
-      <Stack.Screen options={{ headerTitle: 'Home', headerShown: true }} />
-      <View style={styles.container}>
-        <Text style={styles.title}>Welcome to the protected home page!</Text>
-      </View>
+      <StackScreen title='Robe' />
+      <Container>
+        <ThemedText style={styles.title}>Home page</ThemedText>
+        <ThemedText>useColorScheme(): {colorScheme}</ThemedText>
+      </Container>
     </>
   );
 }

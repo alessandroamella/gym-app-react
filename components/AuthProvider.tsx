@@ -2,18 +2,17 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { maybeCompleteAuthSession } from 'expo-web-browser';
 import { useRouter } from 'expo-router';
+import { AxiosError } from 'axios';
+import { config } from '@/constants/config';
+import _ from 'lodash';
+import { UserData } from '@/app/types';
 
 maybeCompleteAuthSession();
-
-type UserData = {
-  id: string;
-  name: string;
-  // Add other fields as necessary
-};
 
 type AuthContextType = {
   token: string | null;
   userData: UserData | null;
+  setUserData: (userData: UserData | null) => void;
   isLoading: boolean;
   signIn: (token: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -65,23 +64,22 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
     }
   };
 
-  const fetchUserData = async (currentToken: string) => {
+  const fetchUserData = async (token: string) => {
     try {
-      const response = await fetch('https://home.bitrey.it/me', {
-        headers: {
-          Authorization: `Bearer ${currentToken}`,
-        },
-      });
+      console.log('Fetching user data with header:', token);
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch user data');
-      }
+      const { data } = await config.axiosBase(token).get('/me');
+      console.log('Fetched user data:', data);
 
-      const data = await response.json();
-      await SecureStore.setItemAsync('userData', JSON.stringify(data));
       setUserData(data);
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      console.error(
+        'Error fetching user data:',
+        (error as AxiosError).response?.data ||
+          (error as AxiosError).message ||
+          error,
+      );
+      // Optionally handle the error, e.g., sign out the user if the token is invalid
       await signOut();
     }
   };
@@ -104,12 +102,23 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
   const refreshUserData = async () => {
     if (token) {
       await fetchUserData(token);
+      if (userData) {
+        await SecureStore.setItemAsync('userData', JSON.stringify(userData));
+      }
     }
   };
 
   return (
     <AuthContext.Provider
-      value={{ token, userData, isLoading, signIn, signOut, refreshUserData }}
+      value={{
+        token,
+        userData,
+        setUserData,
+        isLoading,
+        signIn,
+        signOut,
+        refreshUserData,
+      }}
     >
       {children}
     </AuthContext.Provider>

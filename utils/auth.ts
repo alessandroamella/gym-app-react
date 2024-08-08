@@ -1,15 +1,17 @@
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
+import { config } from '@/constants/config';
 
 export const startAuth = async () => {
   const redirectUri = makeRedirectUri({
-    scheme: 'gym-app',
+    scheme: config.scheme,
   });
 
+  const loginUrl = new URL('/login', config.serverBaseUrl);
+  loginUrl.searchParams.append('redirect_uri', redirectUri);
+
   const result = await WebBrowser.openAuthSessionAsync(
-    `https://home.bitrey.it/login?redirect_uri=${encodeURIComponent(
-      redirectUri,
-    )}`,
+    loginUrl.toString(),
     redirectUri,
   );
 

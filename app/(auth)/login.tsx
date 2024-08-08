@@ -15,7 +15,7 @@ export default function Login() {
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Button title='Login with Telegram' onPress={handleLogin} />
+      <Button title='Login con Telegram' onPress={handleLogin} />
     </View>
   );
 }
