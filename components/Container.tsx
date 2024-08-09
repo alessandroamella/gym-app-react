@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { FC } from 'react';
 import { View, StyleSheet, useColorScheme, ViewProps } from 'react-native';
 
 interface ContainerProps extends ViewProps {}
 
-const Container: React.FC<ContainerProps> = ({ children }) => {
+const Container: FC<ContainerProps> = ({ children }) => {
   const colorScheme = useColorScheme();
 
   const styles = colorScheme === 'dark' ? darkStyles : lightStyles;

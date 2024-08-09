@@ -1,14 +1,15 @@
 import { useAuth } from '@/components/AuthProvider';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   StyleSheet,
   ScrollView,
   RefreshControl,
-  Image,
   TouchableOpacity,
   Alert,
   Modal,
+  Pressable,
+  useColorScheme,
 } from 'react-native';
 import { Avatar, Button, Card, Icon, Input, useTheme } from '@rneui/themed';
 import { LineChart, lineDataItem } from 'react-native-gifted-charts';
@@ -22,10 +23,11 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { config } from '@/constants/config';
 import TextInput from '@/components/TextInput';
-import { AxiosError } from 'axios';
+import { AxiosError, isAxiosError } from 'axios';
 import { UserData } from '../types';
 import GymEntryCard from '@/components/GymEntryCard';
 import DatePicker from 'react-native-date-picker';
+import { errors, getError } from '@/constants/errors';
 
 dayjs.extend(relativeTime);
 
@@ -42,11 +44,14 @@ export default function Profile() {
     setRefreshing(false);
   }, [refreshUserData]);
 
+  const [disabled, setDisabled] = useState(false);
+
   const handleUpdateProfile = async (key: keyof UserData, val: string) => {
     if (!token) {
       Alert.alert('You need to be logged in to update your profile');
       return;
     }
+    setDisabled(true);
     try {
       setEditingUsername(false);
       const { data } = await config.axiosBase(token!).patch('/me', {
@@ -66,6 +71,8 @@ export default function Profile() {
         ).toString(),
       );
       console.error('Error updating profile:', error);
+    } finally {
+      setDisabled(false);
     }
   };
 
@@ -119,8 +126,15 @@ export default function Profile() {
   const { theme } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const [newDate, setNewDate] = useState(new Date());
-  const [points, setPoints] = useState(0);
+  const [points, setPoints] = useState('' as any);
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const time = useMemo<string>(() => {
+    const minutes = (points || 0) * config.minutesPerPoint;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}min`;
+  }, [points]);
 
   const handleAddEntry = async () => {
     if (!token) {
@@ -136,6 +150,8 @@ export default function Profile() {
         // notes: '', // Or some default notes
       });
 
+      console.log('Added new gym entry:', data);
+
       setUserData({
         ...userData!,
         ...data,
@@ -143,11 +159,28 @@ export default function Profile() {
 
       // Close the modal
       setModalVisible(false);
-      setPoints(0);
+      setPoints('' as any);
+      setNewDate(new Date());
     } catch (error) {
-      console.error('Error adding new gym entry:', error);
+      console.log('Error adding new gym entry:', error);
+      if (isAxiosError(error)) {
+        Alert.alert('ahia', getError(error.response?.data.type));
+      }
     }
   };
+
+  const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    if (points && points > 32) {
+      Alert.alert(
+        `ma sei pazzo?? ti sei allenato ${Math.ceil(
+          (points * config.minutesPerPoint) / 60,
+        )} ore in un giorno??`,
+      );
+      setPoints('' as any);
+    }
+  }, [points]);
 
   return (
     <>
@@ -235,14 +268,49 @@ export default function Profile() {
             </View>
           )}
 
-          <Icon
-            name='plus'
-            type='font-awesome'
-            color={theme.colors.primary}
-            size={24}
-            containerStyle={{ position: 'absolute', top: 16, right: 16 }}
+          <Pressable
+            style={({ pressed }) => [
+              {
+                opacity: pressed ? 0.69 : 1.0,
+              },
+              {
+                backgroundColor: theme.colors.primary,
+                ...styles.addButtonContainer,
+              },
+            ]}
             onPress={() => setModalVisible(true)}
-          />
+          >
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                gap: 8,
+                alignItems: 'center',
+              }}
+            >
+              <Icon
+                name='plus'
+                type='font-awesome'
+                color={theme.colors.white}
+                size={24}
+                onPress={() => setModalVisible(true)}
+                containerStyle={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              />
+              <ThemedText
+                style={{
+                  marginBottom: 4,
+                  fontSize: 16,
+                  fontWeight: 'bold',
+                }}
+              >
+                Nuovo allenamento
+              </ThemedText>
+            </View>
+          </Pressable>
 
           <View style={styles.logout}>
             <Button
@@ -266,30 +334,43 @@ export default function Profile() {
             flex: 1,
             justifyContent: 'center',
             alignItems: 'center',
-            backgroundColor: 'rgba(0,0,0,0.5)',
           }}
         >
-          <Card containerStyle={{ width: '90%', borderRadius: 8 }}>
+          <Card
+            containerStyle={{
+              width: '90%',
+              borderRadius: 8,
+              backgroundColor:
+                colorScheme === 'dark'
+                  ? theme.colors.black
+                  : theme.colors.white,
+              borderColor:
+                colorScheme === 'dark' ? theme.colors.grey3 : undefined,
+            }}
+          >
             <ThemedText
               style={{ marginBottom: 16, fontSize: 18, fontWeight: 'bold' }}
             >
-              Add New Gym Entry
+              Aggiungi allenamento
             </ThemedText>
 
-            <Input
-              placeholder='Points'
+            <TextInput
+              autoComplete='off'
+              placeholder='Punti'
               keyboardType='numeric'
               value={points.toString()}
-              onChangeText={(e) => setPoints(parseInt(e))}
-              containerStyle={{ marginBottom: 16 }}
+              onChangeText={(e) =>
+                setPoints(parseInt(e.replace(/\D/g, '')) || ('' as any))
+              }
+              style={{ marginBottom: 16 }}
             />
 
             <Button
-              title={dayjs(newDate).format('DD/MM')}
+              title={'Data: ' + dayjs(newDate).format('DD/MM')}
               onPress={() => setShowDatePicker(true)}
             />
             {/* this will crash in Expo dev */}
-            {showDatePicker && (
+            {/* {showDatePicker && (
               <DatePicker
                 modal
                 open={showDatePicker}
@@ -301,24 +382,43 @@ export default function Profile() {
                 }}
                 onCancel={() => setShowDatePicker(false)}
               />
-            )}
+            )} */}
 
-            <Button
-              title='Add Entry'
-              onPress={handleAddEntry}
-              disabled={points <= 0}
-              buttonStyle={{
-                backgroundColor: theme.colors.primary,
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
                 marginTop: 16,
+                marginBottom: 8,
               }}
-            />
+            >
+              <View style={{ flex: 1 }}>
+                <Button
+                  title='Annulla'
+                  onPress={() => setModalVisible(false)}
+                  type='clear'
+                  buttonStyle={{
+                    backgroundColor: 'transparent',
+                  }}
+                  titleStyle={{
+                    color: theme.colors.error,
+                  }}
+                />
+              </View>
 
-            <Button
-              title='Cancel'
-              onPress={() => setModalVisible(false)}
-              type='clear'
-              titleStyle={{ color: theme.colors.secondary }}
-            />
+              <Button
+                title={`+${points || 0} punt${points === 1 ? 'o' : 'i'}${
+                  time ? ` (${time})` : ''
+                }`}
+                onPress={handleAddEntry}
+                disabled={disabled || points <= 0}
+                buttonStyle={{
+                  backgroundColor: theme.colors.primary,
+                }}
+              />
+            </View>
           </Card>
         </View>
       </Modal>
@@ -384,5 +484,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  // at bottom right of screen
+  addButtonContainer: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 32,
   },
 });

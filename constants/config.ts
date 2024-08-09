@@ -10,6 +10,7 @@ class Config {
       },
     });
   public readonly scheme = 'gym-app';
+  public readonly minutesPerPoint = 45;
 }
 
 export const config = new Config();

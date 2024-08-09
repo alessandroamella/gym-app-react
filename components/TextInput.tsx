@@ -2,40 +2,45 @@ import React, { FC } from 'react';
 import {
   TextInput as RNTextInput,
   StyleSheet,
-  TextInputProps,
+  useColorScheme,
 } from 'react-native';
-import { useTheme } from '@rneui/themed';
+import { InputProps, useTheme } from '@rneui/themed';
 
-interface CustomTextInputProps extends TextInputProps {}
+interface CustomTextInputProps extends React.PropsWithChildren<InputProps> {}
 
 const TextInput: FC<CustomTextInputProps> = ({ style, ...props }) => {
   const { theme } = useTheme();
+  const colorScheme = useColorScheme();
 
-  const styles = StyleSheet.create({
+  // Define dynamic colors based on the color scheme
+  const dynamicStyles = StyleSheet.create({
     input: {
-      height: 40,
-      paddingHorizontal: 10,
-      borderColor: theme.colors.greyOutline, // Border color based on theme
-      // borderWidth: 1,
-      borderRadius: 5,
-      color: theme.colors.black, // Text color based on theme
-      backgroundColor: theme.colors.white, // Background color based on theme
-      borderWidth: 0,
-      paddingVertical: 0,
+      height: 48,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      fontSize: 16,
+      color: colorScheme === 'dark' ? theme.colors.white : theme.colors.black, // Text color
+      backgroundColor:
+        colorScheme === 'dark' ? theme.colors.grey1 : theme.colors.grey5, // Background color
+      borderColor:
+        colorScheme === 'dark' ? theme.colors.grey2 : theme.colors.greyOutline, // Border color
+      borderWidth: 1,
+      shadowColor:
+        colorScheme === 'dark' ? theme.colors.black : theme.colors.grey2, // Shadow color
+      shadowOffset: { width: 0, height: 2 }, // Shadow offset
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3, // For Android shadow effect
+      ...{ style },
     },
   });
 
-  // Adjust styles for dark theme
-  if (theme.mode === 'dark') {
-    styles.input.backgroundColor = theme.colors.grey3;
-    styles.input.color = theme.colors.white;
-    styles.input.borderColor = theme.colors.grey2;
-  }
-
   return (
     <RNTextInput
-      placeholderTextColor={theme.colors.greyOutline} // Placeholder color based on theme
-      style={[styles.input, style]} // Merge custom styles with internal styles
+      placeholderTextColor={
+        colorScheme === 'dark' ? theme.colors.grey3 : theme.colors.greyOutline
+      } // Placeholder color
+      style={[dynamicStyles.input, style]} // Apply dynamic and custom styles
       {...props}
     />
   );
